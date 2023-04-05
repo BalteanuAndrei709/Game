@@ -1,77 +1,159 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class PlayerMovement : MonoBehaviour
 {
+    private float horizontal;
+    private float speed = 8f;
+    private float jumpingPower = 16f;
+    private bool isFacingRight = true;
 
-    private Rigidbody2D rb;
-    private SpriteRenderer sprite;
-    private BoxCollider2D coll;
-    private Animator animator;
+    private float coyoteTime = 0.2f;
+    private float coyoteTimeCounter;
 
-    private float directionX = 0f;
-    [SerializeField]private float moveSpeed = 7f;
-    [SerializeField]private float jumpForce = 14;
-    [SerializeField]private LayerMask jumpableGround;
-    
-    private enum MovementState { idle, running, jumping, falling }
-    
+    private float jumpBufferTime = 0.2f;
+    private float jumpBufferCounter;
 
-    void Start()
-    {
-        rb = GetComponent<Rigidbody2D>();
-        coll = GetComponent<BoxCollider2D>();
-        animator = GetComponent<Animator>();
-        sprite = GetComponent<SpriteRenderer>();
-    }
+    private bool isWallSliding;
+    private float wallSlidingSpeed = 2f;
 
-    // Update is called once per frame
+    private bool isWallJumping;
+    private float wallJumpingDirection;
+    private float wallJumpingTime = 0.2f;
+    private float wallJumpingCounter;
+    private float wallJumpingDuration = 0.4f;
+    private Vector2 wallJumpingPower = new Vector2(8f, 16f);
+
+    [SerializeField] private Rigidbody2D rb;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private Transform wallCheck;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask bodyLayer;
+    [SerializeField] private LayerMask wallLayer;
+
     void Update()
     {
-        directionX = Input.GetAxisRaw("Horizontal");
-        rb.velocity = new Vector2(directionX * moveSpeed, rb.velocity.y);
+        horizontal = Input.GetAxisRaw("Horizontal");
 
-        if(Input.GetButtonDown("Jump") && isGrounded())
+        if(IsGrounded())
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-        }
-
-        UpdateAnimationState();
-        
-    }
-
-    private void UpdateAnimationState()
-    {
-        MovementState state;
-
-        if (directionX > 0f)
-        {
-            state = MovementState.running;
-            sprite.flipX = false; 
-        }
-        else if (directionX < 0)
-        {
-            state = MovementState.running;
-            sprite.flipX = true;
+            coyoteTimeCounter = coyoteTime;
         }
         else
         {
-            state = MovementState.idle;
+            coyoteTimeCounter -= Time.deltaTime;
         }
-        if(rb.velocity.y > .1f)
+
+        if(Input.GetButtonDown("Jump"))
         {
-            state = MovementState.jumping;
+            jumpBufferCounter = jumpBufferTime;
         }
-        else if( rb.velocity.y < -.1f)
+        else
         {
-            state = MovementState.falling;
+            jumpBufferCounter -= Time.deltaTime;
         }
-        animator.SetInteger("state", (int)state);
+
+        if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpingPower);
+
+            jumpBufferCounter = 0f;
+        }
+
+        if(Input.GetButtonUp("Jump") && rb.velocity.y > 0f)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+
+            coyoteTimeCounter = 0;
+        }
+
+        WallSlide();
+        WallJump();
+        if(!isWallJumping)
+        {
+            Flip();
+        }
     }
 
-    private bool isGrounded()
+    private void FixedUpdate()
     {
-        return Physics2D.BoxCast(coll.bounds.center, coll.bounds.size, 0f, Vector2.down, .1f, jumpableGround);
+        rb.velocity = new Vector2(horizontal * speed, rb.velocity.y);
+    }
+
+    private bool IsGrounded()
+    {
+        return (Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer) 
+            || Physics2D.OverlapCircle(groundCheck.position, 0.2f, bodyLayer));
+    }
+
+    private bool IsWalled()
+    {
+        return (Physics2D.OverlapCircle(wallCheck.position, 0.8f, wallLayer)
+            || Physics2D.OverlapCircle(wallCheck.position, 0.8f, bodyLayer));
+    }
+
+    private void WallSlide()
+    {
+        if(IsWalled() && !IsGrounded() && horizontal != 0f)
+        {
+            Debug.Log("Hit!");
+            isWallSliding = true;
+            rb.velocity = new Vector2(rb.velocity.x, Mathf.Clamp(rb.velocity.y, -wallSlidingSpeed, float.MaxValue));
+        }
+        else
+        {
+            isWallSliding = false;
+        }
+    }
+
+    private void WallJump()
+    {
+        if(isWallSliding)
+        {
+            isWallJumping = false;
+            wallJumpingDirection = -transform.localScale.x;
+            wallJumpingCounter = wallJumpingTime;
+
+            CancelInvoke(nameof(StopWallJumping));
+        }
+        else
+        {
+            wallJumpingCounter -= Time.deltaTime;
+        }
+
+        if(Input.GetButtonDown("Jump") && wallJumpingCounter > 0f)
+        {
+            isWallJumping = true;
+            rb.velocity = new Vector2(wallJumpingDirection * wallJumpingPower.x, wallJumpingPower.y);
+            wallJumpingCounter = 0f;
+
+            if(transform.localScale.x != wallJumpingDirection)
+            {
+                isFacingRight = !isFacingRight;
+                Vector3 localScale = transform.localScale;
+                localScale.x *= -1f;
+                transform.localScale = localScale;
+            }
+
+            Invoke(nameof(StopWallJumping), wallJumpingDuration);
+        }
+    }
+
+    private void StopWallJumping()
+    {
+        isWallJumping = false;
+    }
+
+    private void Flip()
+    {
+        if (isFacingRight && horizontal < 0f || !isFacingRight && horizontal > 0f) 
+        {
+            isFacingRight = !isFacingRight;
+            Vector3 localScale = transform.localScale;
+            localScale.x *= -1f;
+            transform.localScale = localScale;
+        }
     }
 }

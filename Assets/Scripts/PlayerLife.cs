@@ -10,7 +10,7 @@ public class PlayerLife : MonoBehaviour
     public GameObject Body;
 
     private float lastCollisionTime = 0;
-    private Vector3 startPosition = new Vector3(-7.56f, 3.19f, 0f);
+    private Vector3 startPosition = new Vector3(-8.38f, -1.58f, 0f);
 
     private void Start()
     {
