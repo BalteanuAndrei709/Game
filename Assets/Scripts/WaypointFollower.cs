@@ -9,16 +9,32 @@ public class WaypointFollower : MonoBehaviour
 
     [SerializeField] private float speed = 2f;
 
+    public bool go = true;
+
     private void Update()
     {
-        if (Vector2.Distance(waypoints[currentWaypointIndex].transform.position, transform.position) < .1f)
+        if(!go)
         {
-            currentWaypointIndex++;
-            if (currentWaypointIndex >= waypoints.Length)
-            {
-                currentWaypointIndex = 0;
-            }
+            gameObject.isStatic = true;
         }
-        transform.position = Vector2.MoveTowards(transform.position, waypoints[currentWaypointIndex].transform.position, Time.deltaTime * speed);
+        else
+        {
+            if (Vector2.Distance(waypoints[currentWaypointIndex].transform.position, transform.position) < .1f)
+            {
+                currentWaypointIndex++;
+                if (currentWaypointIndex >= waypoints.Length)
+                {
+                    currentWaypointIndex = 0;
+                }
+            }
+            transform.position = Vector2.MoveTowards(transform.position, waypoints[currentWaypointIndex].transform.position, Time.deltaTime * speed);
+        }
+    }
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.transform.name == "Player" || collision.transform.tag == "Body")
+        {
+            go = false;
+        }
     }
 }

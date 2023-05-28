@@ -98,7 +98,6 @@ public class PlayerMovement : MonoBehaviour
     {
         if(IsWalled() && !IsGrounded() && horizontal != 0f)
         {
-            Debug.Log("Hit!");
             isWallSliding = true;
             rb.velocity = new Vector2(rb.velocity.x, Mathf.Clamp(rb.velocity.y, -wallSlidingSpeed, float.MaxValue));
         }

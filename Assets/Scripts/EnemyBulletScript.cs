@@ -16,7 +16,7 @@ public class EnemyBulletScript : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         player = GameObject.FindGameObjectWithTag("Player");
 
-        Vector3 direction = player.transform.position - transform.position;
+        Vector3 direction = new Vector3(1.0f, 0.0f, 0.0f);
         rb.velocity = new Vector2(direction.x, direction.y).normalized * force;
 
         float rot = Mathf.Atan2(-direction.y, -direction.x) * Mathf.Rad2Deg;
@@ -37,10 +37,7 @@ public class EnemyBulletScript : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("Body"))
-        {
             Destroy(gameObject);
-        }
     }
 
 }
